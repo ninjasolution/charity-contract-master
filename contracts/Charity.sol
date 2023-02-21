@@ -509,18 +509,20 @@ contract Charity is Ownable {
 
     address public charityAddress;
     uint256 public divisor = 10000;
+    uint256 public priceDivisor = 100000000;
     address public sponsorAddress;
     address public corporateAddress;
     uint public corporatePercent = 300;
     uint public burnPercent = 9000;
     uint public charityPercent = 1000;
-    address public bnbToUsdAddress = 0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE;
+    address public bnbToUsdAddress = 0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526;
+    // address public bnbToUsdAddress = 0x14e613AC84a31f709eadbdF89C6CC390fDc9540A; /* mainnet */
     address public immutable deadAddress =
         0x000000000000000000000000000000000000dEaD;
     AggregatorV3Interface internal priceFeed;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
-    address public immutable uniswapV2Pair;
+    // address public immutable uniswapV2Pair;
 
     address public DBME;
 
@@ -532,18 +534,23 @@ contract Charity is Ownable {
 
     constructor() {
         priceFeed = AggregatorV3Interface(bnbToUsdAddress);
+        charityAddress = 0x04E117247e2F29d0ff11B99b3df6BFb0FB2Ed2F0;
+        sponsorAddress = 0x04E117247e2F29d0ff11B99b3df6BFb0FB2Ed2F0;
+        corporateAddress = 0x04E117247e2F29d0ff11B99b3df6BFb0FB2Ed2F0;
 
         // DBME = 0x6a9AB0D83Fdbb71f591864ebA267c92c9Bf98E8d /* mainnet */;
         DBME = 0x4314973717DFD89213a19Ef262A955B9F5D4a811; /* testnet */
-        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E); /* mainnet */
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
-            0xD99D1c33F9fC3444f8101754aBC46c52416550D1
+            0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
         ); /* testnet */
 
-        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
-            .createPair(DBME, _uniswapV2Router.WETH());
+        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E); /* mainnet */
+        // uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+        //     .createPair(DBME, _uniswapV2Router.WETH());
 
         uniswapV2Router = _uniswapV2Router;
+
+        products[0] = 150;
     }
 
     function addProduct(uint256 index, uint256 amount) public onlyOwner {
@@ -551,19 +558,21 @@ contract Charity is Ownable {
         products[index] = amount;
     }
 
-    function setDBME(address _dbme) public onlyOwner {
+    function setDBME(address _dbme) external onlyOwner {
         DBME = _dbme;
     }
 
-    function buyProduct(uint256 index) public {
-        uint256 balanceInUSD = address(msg.sender).balance *
-            uint256(getLatestPrice());
+    function buyProduct(uint256 index) external payable {
+        uint256 balanceInUSD = (address(msg.sender).balance *
+            uint256(getLatestPrice())).div(priceDivisor);
 
-        require(balanceInUSD >= products[index], "Insufficient balance");
+        require(balanceInUSD >= products[index].mul(10 ** 18), "Insufficient balance");
 
-        uint256 amountInEth = products[index] / uint256(getLatestPrice());
+        uint256 amountInEth = products[index] / uint256(getLatestPrice()).div(priceDivisor);
 
-        uint256 sponsorAmount = amountInEth.sub(3).mul(2);
+        uint256 sponsorAmount = amountInEth.div(3).mul(2);
+
+        
         payable(sponsorAddress).transfer(sponsorAmount);
         payable(corporateAddress).transfer(
             amountInEth.mul(corporatePercent).div(divisor)
@@ -603,6 +612,11 @@ contract Charity is Ownable {
         {
             emit SwapETHForTokens(amount, path);
         } catch {}
+    }
+
+    function getBalancePrice() public view returns (uint256) {
+        return (address(msg.sender).balance *
+            uint256(getLatestPrice())).div(priceDivisor);
     }
 
     /**

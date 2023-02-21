@@ -7,8 +7,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "npx hardhat run scripts/deploy.js --network bsctest"
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat run scripts/deploy.js --network bsctest",
+    "compile": "npx hardhat compile"
   },
   "repository": {
     "type": "git",
@@ -22,10 +23,12 @@
   "license": "ISC",
   "dependencies": {
     "@chainlink/contracts": "^0.6.1",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@nomicfoundation/hardhat-toolbox": "^2.0.1",
     "@openzeppelin/contracts": "^4.8.1",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
+    "chai": "^4.3.7",
     "hardhat": "^2.12.7"
   },
   "devDependencies": {
