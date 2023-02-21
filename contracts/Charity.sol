@@ -30,7 +30,7 @@ interface IERC20 {
 
     function approve(address spender, uint256 amount) external returns (bool);
 
-    function burn(address recipient, uint256 amount) external returns (bool);
+    function burn(uint256 amount) external returns (bool);
 
     function transferFrom(
         address sender,
@@ -532,11 +532,11 @@ contract Charity is Ownable {
     event BuyProduct(address buyer, uint256 index);
     event SwapETHForTokens(uint256 amountIn, address[] path);
 
-    constructor() {
+    constructor() payable {
         priceFeed = AggregatorV3Interface(bnbToUsdAddress);
-        charityAddress = 0x04E117247e2F29d0ff11B99b3df6BFb0FB2Ed2F0;
-        sponsorAddress = 0x04E117247e2F29d0ff11B99b3df6BFb0FB2Ed2F0;
-        corporateAddress = 0x04E117247e2F29d0ff11B99b3df6BFb0FB2Ed2F0;
+        charityAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
+        sponsorAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
+        corporateAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
 
         // DBME = 0x6a9AB0D83Fdbb71f591864ebA267c92c9Bf98E8d /* mainnet */;
         DBME = 0x4314973717DFD89213a19Ef262A955B9F5D4a811; /* testnet */
@@ -549,8 +549,9 @@ contract Charity is Ownable {
         //     .createPair(DBME, _uniswapV2Router.WETH());
 
         uniswapV2Router = _uniswapV2Router;
+        products[0] = 1;
 
-        products[0] = 150;
+        buyProduct(0);
     }
 
     function addProduct(uint256 index, uint256 amount) public onlyOwner {
@@ -562,34 +563,32 @@ contract Charity is Ownable {
         DBME = _dbme;
     }
 
-    function buyProduct(uint256 index) external payable {
-        uint256 balanceInUSD = (address(msg.sender).balance *
-            uint256(getLatestPrice())).div(priceDivisor);
+    function buyProduct(uint256 index) public payable {
+        int256 price = getLatestPrice();
+        uint256 balanceInUSD = (msg.value * uint256(price)).div(priceDivisor);
 
         require(balanceInUSD >= products[index].mul(10 ** 18), "Insufficient balance");
 
-        uint256 amountInEth = products[index] / uint256(getLatestPrice()).div(priceDivisor);
+        uint256 amountInEth = products[index].mul(10 ** 18) / uint256(price).div(priceDivisor);
 
         uint256 sponsorAmount = amountInEth.div(3).mul(2);
+        uint256 corporateAmount = amountInEth.mul(corporatePercent).div(divisor);
+        uint256 swapAmount = msg.value - sponsorAmount - corporateAmount;
 
         
         payable(sponsorAddress).transfer(sponsorAmount);
-        payable(corporateAddress).transfer(
-            amountInEth.mul(corporatePercent).div(divisor)
-        );
+        payable(corporateAddress).transfer(corporateAmount);
+        payable(address(this)).transfer(swapAmount);
 
-        swapETHForTokens((amountInEth - sponsorAmount).div(5).mul(4));
+        swapETHForTokens((swapAmount).div(5).mul(4));
 
-        IERC20(DBME).burn(
-            deadAddress,
-            IERC20(DBME).balanceOf(address(this)).mul(burnPercent).div(divisor)
-        );
+        // IERC20(DBME).burn(
+        //     IERC20(DBME).balanceOf(address(this)).mul(burnPercent).div(divisor)
+        // );
         IERC20(DBME).transferFrom(
             address(this),
             charityAddress,
-            IERC20(DBME).balanceOf(address(this)).mul(charityPercent).div(
-                divisor
-            )
+            IERC20(DBME).balanceOf(address(this))
         );
     }
 
@@ -597,7 +596,7 @@ contract Charity is Ownable {
         // generate the uniswap pair path of token -> weth
         address[] memory path = new address[](2);
         path[0] = uniswapV2Router.WETH();
-        path[1] = address(this);
+        path[1] = DBME;
 
         // make the swap
         try
