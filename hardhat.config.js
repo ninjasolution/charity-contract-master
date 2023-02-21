@@ -1,4 +1,4 @@
-const PRIVATE_KEY = ""
+const PRIVATE_KEY = "a58aa0760cc92d52959fefca1982712e6408d98b7a7fad7796d16f90915145ff";
 
 module.exports = {
   defaultNetwork: "goerli",
@@ -7,6 +7,10 @@ module.exports = {
     },
     goerli: {
       url: "https://eth-goerli.alchemyapi.io/v2/123abc123abc123abc123abc123abcde",
+      accounts: [PRIVATE_KEY]
+    },
+    bsctest: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
       accounts: [PRIVATE_KEY]
     }
   },
