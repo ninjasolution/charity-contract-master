@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
         return payable(msg.sender);
@@ -29,8 +27,6 @@ interface IERC20 {
         returns (uint256);
 
     function approve(address spender, uint256 amount) external returns (bool);
-
-    function burn(uint256 amount) external returns (bool);
 
     function transferFrom(
         address sender,
@@ -501,6 +497,36 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
     ) external;
 }
 
+
+interface AggregatorV3Interface {
+  function decimals() external view returns (uint8);
+
+  function description() external view returns (string memory);
+
+  function version() external view returns (uint256);
+
+  function getRoundData(uint80 _roundId)
+    external
+    view
+    returns (
+      uint80 roundId,
+      int256 answer,
+      uint256 startedAt,
+      uint256 updatedAt,
+      uint80 answeredInRound
+    );
+
+  function latestRoundData()
+    external
+    view
+    returns (
+      uint80 roundId,
+      int256 answer,
+      uint256 startedAt,
+      uint256 updatedAt,
+      uint80 answeredInRound
+    );
+}
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
@@ -522,7 +548,6 @@ contract Charity is Ownable {
     AggregatorV3Interface internal priceFeed;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
-    // address public immutable uniswapV2Pair;
 
     address public DBME;
 
@@ -532,7 +557,7 @@ contract Charity is Ownable {
     event BuyProduct(address buyer, uint256 index);
     event SwapETHForTokens(uint256 amountIn, address[] path);
 
-    constructor() payable {
+    constructor() {
         priceFeed = AggregatorV3Interface(bnbToUsdAddress);
         charityAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
         sponsorAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
@@ -541,20 +566,15 @@ contract Charity is Ownable {
         // DBME = 0x6a9AB0D83Fdbb71f591864ebA267c92c9Bf98E8d /* mainnet */;
         DBME = 0x4314973717DFD89213a19Ef262A955B9F5D4a811; /* testnet */
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
-            0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
+            0xD99D1c33F9fC3444f8101754aBC46c52416550D1
         ); /* testnet */
-
-        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E); /* mainnet */
-        // uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
-        //     .createPair(DBME, _uniswapV2Router.WETH());
 
         uniswapV2Router = _uniswapV2Router;
         products[0] = 1;
 
-        buyProduct(0);
     }
 
-    function addProduct(uint256 index, uint256 amount) public onlyOwner {
+    function addProduct(uint256 index, uint256 amount) external onlyOwner {
         emit AddProduct(index, amount);
         products[index] = amount;
     }
@@ -563,7 +583,7 @@ contract Charity is Ownable {
         DBME = _dbme;
     }
 
-    function buyProduct(uint256 index) public payable {
+    function buyProduct(uint256 index) external payable {
         int256 price = getLatestPrice();
         uint256 balanceInUSD = (msg.value * uint256(price)).div(priceDivisor);
 
@@ -582,13 +602,14 @@ contract Charity is Ownable {
 
         swapETHForTokens((swapAmount).div(5).mul(4));
 
-        // IERC20(DBME).burn(
-        //     IERC20(DBME).balanceOf(address(this)).mul(burnPercent).div(divisor)
-        // );
-        IERC20(DBME).transferFrom(
-            address(this),
+        IERC20(DBME).transfer(
+            deadAddress,
+            IERC20(DBME).balanceOf(address(this)).mul(burnPercent).div(divisor)
+        );
+
+        IERC20(DBME).transfer(
             charityAddress,
-            IERC20(DBME).balanceOf(address(this))
+            IERC20(DBME).balanceOf(address(this)).mul(charityPercent).div(divisor)
         );
     }
 
@@ -605,15 +626,15 @@ contract Charity is Ownable {
             }(
                 0, // accept any amount of Tokens
                 path,
-                deadAddress, // Burn address
-                block.timestamp
+                address(this), // recipient address
+                block.timestamp + 100
             )
         {
             emit SwapETHForTokens(amount, path);
         } catch {}
     }
 
-    function getBalancePrice() public view returns (uint256) {
+    function getBalancePrice() external view returns (uint256) {
         return (address(msg.sender).balance *
             uint256(getLatestPrice())).div(priceDivisor);
     }
