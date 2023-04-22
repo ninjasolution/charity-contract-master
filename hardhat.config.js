@@ -1,6 +1,8 @@
 require("@nomicfoundation/hardhat-toolbox");
 
-const PRIVATE_KEY = "a58aa0760cc92d52959fefca1982712e6408d98b7a7fad7796d16f90915145ff";
+const PRIVATE_KEY = "c904cad31154e3651a36dc7ea69b39c0d6e34ebe7ee3021a10a9e38ad7d10383";
+const etherscanKey = "JWWZ4FI5B2WCHSU9INPUNXXFPPXZA93FD2"
+const bscscanKey = "9SWZ3CGU5WVTJK9QNCP5A7TRZ6PUHDE6PH"
 
 module.exports = {
   defaultNetwork: "goerli",
@@ -17,13 +19,23 @@ module.exports = {
     }
   },
   solidity: {
-    version: "0.8.17",
+    // version: "0.8.17",
     settings: {
       optimizer: {
         enabled: true,
         runs: 200
       }
-    }
+    },
+    compilers: [
+      {
+        version: "0.8.18",
+      },
+      {
+        version: "0.8.9",
+      },
+      {
+        version: "0.8.7",
+      },]
   },
   paths: {
     sources: "./contracts",
@@ -33,5 +45,11 @@ module.exports = {
   },
   mocha: {
     timeout: 40000
+  },
+  etherscan: {
+    apiKey: bscscanKey,
+  },
+  bscscan: {
+    apiKey: bscscanKey
   }
 }

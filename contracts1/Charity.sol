@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at BscScan.com on 2023-02-25
+*/
+
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
@@ -527,6 +531,76 @@ interface AggregatorV3Interface {
       uint80 answeredInRound
     );
 }
+
+
+/**
+ * @dev String operations.
+ */
+library Strings {
+    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function toString(uint256 value) internal pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     */
+    function toHexString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0x00";
+        }
+        uint256 temp = value;
+        uint256 length = 0;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     */
+    function toHexString(uint256 value, uint256 length)
+        internal
+        pure
+        returns (string memory)
+    {
+        bytes memory buffer = new bytes(2 * length + 2);
+        buffer[0] = "0";
+        buffer[1] = "x";
+        for (uint256 i = 2 * length + 1; i > 1; --i) {
+            buffer[i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
+        return string(buffer);
+    }
+}
+
+
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
@@ -536,13 +610,14 @@ contract Charity is Ownable {
     address public charityAddress;
     uint256 public divisor = 10000;
     uint256 public priceDivisor = 100000000;
-    address public sponsorAddress;
     address public corporateAddress;
     uint public corporatePercent = 300;
     uint public burnPercent = 9000;
     uint public charityPercent = 1000;
+    uint public utilityPrice;
+
     address public bnbToUsdAddress = 0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526;
-    // address public bnbToUsdAddress = 0x14e613AC84a31f709eadbdF89C6CC390fDc9540A; /* mainnet */
+    // address public bnbToUsdAddress = 0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE; /* mainnet */
     address public immutable deadAddress =
         0x000000000000000000000000000000000000dEaD;
     AggregatorV3Interface internal priceFeed;
@@ -551,8 +626,6 @@ contract Charity is Ownable {
 
     address public DBME;
 
-    mapping(uint256 => uint256) public products;
-
     event AddProduct(uint256 index, uint256 amount);
     event BuyProduct(address buyer, uint256 index);
     event SwapETHForTokens(uint256 amountIn, address[] path);
@@ -560,45 +633,56 @@ contract Charity is Ownable {
     constructor() {
         priceFeed = AggregatorV3Interface(bnbToUsdAddress);
         charityAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
-        sponsorAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
         corporateAddress = 0x02fc14d01F4E073829276cc2f4f94Fb4EDe1e0c4;
 
         // DBME = 0x6a9AB0D83Fdbb71f591864ebA267c92c9Bf98E8d /* mainnet */;
         DBME = 0x4314973717DFD89213a19Ef262A955B9F5D4a811; /* testnet */
+        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+        //     0xD99D1c33F9fC3444f8101754aBC46c52416550D1
+        // ); /* testnet */
+
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
-            0xD99D1c33F9fC3444f8101754aBC46c52416550D1
-        ); /* testnet */
+            0x10ED43C718714eb63d5aA57B78B54704E256024E
+        ); /* mainnet */
 
         uniswapV2Router = _uniswapV2Router;
-        products[0] = 1;
 
-    }
-
-    function addProduct(uint256 index, uint256 amount) external onlyOwner {
-        emit AddProduct(index, amount);
-        products[index] = amount;
+        utilityPrice = 76200; // real price is $0.000762 because price divisor is 10 ** 8;
     }
 
     function setDBME(address _dbme) external onlyOwner {
         DBME = _dbme;
     }
 
-    function buyProduct(uint256 index) external payable {
+    function setUtilityPrice(uint _newPrice) external onlyOwner {
+        utilityPrice = _newPrice;
+    }
+
+    function setCharity(address _charity) external onlyOwner {
+        charityAddress = _charity;
+    }
+
+    function setCorporate(address _corporate) external onlyOwner {
+        corporateAddress = _corporate;
+    }
+
+    function buyProduct(uint256 _price, address _sponsorAddress) public payable {
         int256 price = getLatestPrice();
         uint256 balanceInUSD = (msg.value * uint256(price)).div(priceDivisor);
 
-        require(balanceInUSD >= products[index].mul(10 ** 18), "Insufficient balance");
-
-        uint256 amountInEth = products[index].mul(10 ** 18) / uint256(price).div(priceDivisor);
+        require(balanceInUSD >= _price.mul(10 ** 18), "Insufficient balance");
+        require(_sponsorAddress != address(0), "Invalid address");
+        
+        uint256 amountInEth = _price.mul(10 ** 18).div(uint256(price)).div(priceDivisor);
 
         uint256 sponsorAmount = amountInEth.div(3).mul(2);
         uint256 corporateAmount = amountInEth.mul(corporatePercent).div(divisor);
         uint256 swapAmount = msg.value - sponsorAmount - corporateAmount;
 
         
-        payable(sponsorAddress).transfer(sponsorAmount);
+        payable(_sponsorAddress).transfer(sponsorAmount);
         payable(corporateAddress).transfer(corporateAmount);
-        payable(address(this)).transfer(swapAmount);
+        payable(address(this)).call{value: swapAmount};
 
         swapETHForTokens((swapAmount).div(5).mul(4));
 
@@ -613,6 +697,38 @@ contract Charity is Ownable {
         );
     }
 
+    function upgradeProduct(uint256 _price, address _sponsorAddress) public payable {
+        int256 price = getLatestPrice();
+        uint256 bnbPrice = _price.mul(10 ** 18).mul(11).div(15);
+        uint256 balanceInUSD = (msg.value * uint256(price)).div(priceDivisor);
+
+        require(balanceInUSD >= bnbPrice, "Insufficient balance");
+        require(_sponsorAddress != address(0), "Invalid address");
+
+        uint256 amountInEth = _price.mul(10 ** 18).div(uint256(price)).div(priceDivisor);
+
+        uint256 sponsorAmount = amountInEth.div(3).mul(2);
+        uint256 corporateAmount = amountInEth.mul(corporatePercent).div(divisor);
+        uint256 dbmeAmount = _price.mul(4 * (10 ** 18)).div(15 * utilityPrice * priceDivisor);
+
+        
+        payable(_sponsorAddress).transfer(sponsorAmount);
+        payable(corporateAddress).transfer(corporateAmount);
+
+        IERC20(DBME).transferFrom(
+            msg.sender,
+            deadAddress,
+            dbmeAmount.mul(burnPercent).div(divisor)
+        );
+
+        IERC20(DBME).transferFrom(
+            msg.sender,
+            charityAddress,
+            dbmeAmount.mul(charityPercent).div(divisor)
+        );
+
+    }
+  
     function swapETHForTokens(uint256 amount) private {
         // generate the uniswap pair path of token -> weth
         address[] memory path = new address[](2);
@@ -639,6 +755,7 @@ contract Charity is Ownable {
             uint256(getLatestPrice())).div(priceDivisor);
     }
 
+    
     /**
      * Returns the latest price.
      */
