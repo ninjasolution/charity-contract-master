@@ -7,30 +7,28 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  // const Charity = await ethers.getContractFactory("Charity");
-  // const charity = await Charity.deploy();
+  
+  let name = "Post NFT";
+  let symbol = "Post";
+  let recipient = "0x4696F32B4F26476e0d6071d99f196929Df56575b";
 
-  // await charity.deployed();
+  const Post = await hre.ethers.getContractFactory("Post");
+  const PostFactory = await hre.ethers.getContractFactory("PostFactory");
+  const post = await Post.deploy(name, symbol, recipient)
+  const postFactory = await PostFactory.deploy();
+  
+  console.log("Post deployed to:", post.address);
+  console.log("PostFactory deployed to:", postFactory.address);
 
-  // console.log(
-  //   `deployed to ${charity.address}`
-  // );
+  await hre.run("verify:verify", {
+    address: post.address,
+    constructorArguments: [name, symbol, recipient],
+  });
 
-  const NFT = await hre.ethers.getContractFactory("NFT");
-    const Token = await hre.ethers.getContractFactory("MyToken");
-    const Staking = await hre.ethers.getContractFactory("StakeNFT");
-    // const nft1 = await NFT.deploy('0x4696F32B4F26476e0d6071d99f196929Df56575b', 'NFT1', 'NFT1')
-    // await nft1.deployed();
-    // const nft2 = await NFT.deploy('0x4696F32B4F26476e0d6071d99f196929Df56575b', 'NFT2', 'NFT2')
-    // await nft2.deployed();
-    const token = await Token.deploy();
-    await token.deployed();
-    // const staking = await Staking.deploy(token.address);
-    // await staking.deployed();
-
-    console.log("Token deployed to:", token.address);
-    // console.log("NFT deployed to:", nft1.address, nft2.address);
-    // console.log("Staking deployed to:", staking.address);
+  await hre.run("verify:verify", {
+    address: postFactory.address,
+    // constructorArguments: [name, symbol, recipient],
+  });
 }
 
 // We recommend this pattern to be able to use async/await everywhere
