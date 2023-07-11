@@ -9,6 +9,7 @@ interface IPostFactory {
 }
 
 contract PostFactory is IPostFactory {
+
     address[] public posts;
 
     mapping(address => bool) private _postStatus;
@@ -18,22 +19,23 @@ contract PostFactory is IPostFactory {
         address post
     );
 
-    function importCollection(address _address) external {
-        posts.push(_address);
-        _postStatus[_address] = true;
-        emit CreatedPostCollection(msg.sender, _address);
+    function importCollection(address _collection) external {
+        posts.push(_collection);
+        _postStatus[_collection] = true;
+        emit CreatedPostCollection(msg.sender, _collection);
     }
 
-    function createCollection(string memory name, string memory symbol, address feeRecipient) external returns (address collection) {
+    function createCollection(string calldata name, string calldata symbol, address feeRecipient) external returns (address _collection) {
         
         bytes memory bytecode = type(Post).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(name, symbol, feeRecipient));
         assembly {
-            collection := create2(0, add(bytecode, 32), mload(bytecode), salt)
+            _collection := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        posts.push(address(collection));
-        _postStatus[collection] = true;
-        emit CreatedPostCollection(msg.sender, collection);
+        posts.push(address(_collection));
+        _postStatus[_collection] = true;
+        
+        emit CreatedPostCollection(msg.sender, _collection);
     }
 
 

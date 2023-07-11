@@ -2,6 +2,7 @@ const {
   loadFixture,
 } = require("@nomicfoundation/hardhat-network-helpers");
 const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("PostFactory", function () {
 
@@ -25,7 +26,9 @@ describe("PostFactory", function () {
     let symbol = "Post";
     let recipient = "0x4696F32B4F26476e0d6071d99f196929Df56575b";
     const _postFactory = await postFactory.createCollection(name, symbol, recipient);
-    console.log(_postFactory);
+    
+    const pair = await postFactory.createCollection(0);
+    const post = await ethers.getContractAt("Post", pair)
 
     let _name = await postFactory.name();
     expect(_name).to.equal(name);

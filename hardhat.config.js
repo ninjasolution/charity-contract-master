@@ -6,7 +6,7 @@ const bscscanKey = "9SWZ3CGU5WVTJK9QNCP5A7TRZ6PUHDE6PH"
 const avaxscanKey = "JT49Q5ET22QQR3X1WQV3UH1BEGUWQDJ785"
 
 module.exports = {
-  defaultNetwork: "goerli",
+  defaultNetwork: "hardhat",
   networks: {
     bsctest: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
